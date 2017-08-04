@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>チャットルーム</title>
+  % include('library.html')
+  <style>
+    .chat_area {
+      overflow: auto;
+      border: solid;
+      width: 400px;
+      height: 500px;
+      vertical-align: bottom;
+      background-color: #DDDD;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Welcome {{username}}</h2>
+    <h2>ChatApp</h2>
+    <div id="chat_area" class="chat_area row col-md-12">
+    </div>
+    <div id="input_area" class="row col-md-12">
+      <form action="#" id="talkForm" method="POST">
+        {{username}}
+        <input type="text" name="chat" />
+        <input type="submit" value="送信">
+      </form>
+    </div>
+  </div>
+
+<script>
+  var LAST_TALK = null;
+
+  $(document).ready(function(){
+    getTalkData();
+  });
+
+  $('#talkForm').on('submit', function(event){
+    event.preventDefault();
+    saveTalkData();
+  });
+
+  setInterval(checkUpdate, 100);
+
+  function saveTalkData(){
+    $.ajax({
+      type: 'POST',
+      url: '/api/talk',
+      data: {
+        'chat': $("input[name='chat']").val()
+      },
+      dataType: 'json'
+    }).done(function(data){
+      if (data['status'] != 'success') {
+        alert('ERROR');
+      } else {
+        $('input[name="chat"]').val('');
+        getTalkData();
+      }
+    }).fail(function(data){
+      console.error(data);
+    });
+  }
+
+  //発現データの取得
+  function getTalkData(){
+    $.ajax({
+      type: 'GET',
+      url: '/api/talk',
+      dataType: 'json'
+    }).done(function(data){
+      //JSONを受取、各発言のDOMを構築
+      $('#chat_area').empty();
+      for(var i in data){
+        appendTalkNode(data[i].talk_time, data[i].username, data[i].chat_data);
+        LAST_TALK = data[i]
+      }
+    }).fail(function(data){
+      console.error(data);
+    });
+  }
+
+  function checkUpdate() {
+    $.ajax({
+      type: 'GET',
+      url: '/api/last_talk',
+      dataType: 'json'
+    }).done(function(data) {
+      if (data.username === LAST_TALK.username &&
+          data.talk_time === LAST_TALK.talk_time &&
+          data.chat_data === LAST_TALK.chat_data) {
+            console.log('not need updating');
+      } else {
+        getTalkData();
+      }
+    }).fail(function(data) {
+      console.error(data);
+    });
+  }
+
+  //発現データのDOMを追加
+  function appendTalkNode(talkTime, userName, chatData){
+    var chatArea = $('#chat_area')
+    var rowDiv = $('<div></div>', {'class': 'row'})
+    var talkDiv;
+    if (userName == '{{username}}'){
+      talkDiv = $('<div></div>', {
+        'class': 'talk alert alert-info pull-right col-md-5',
+        'style': 'word-wrap: break-word',
+        'title': talkTime
+      })
+    } else {
+      talkDiv = $('<div></div>', {
+        'class': 'talk alert alert-success pull-left col-md-5',
+        'style': 'word-wrap: break-word',
+        'title': talkTime
+      })
+    }
+    talkDiv.text(userName + ":" + chatData);
+    rowDiv.append(talkDiv);
+    chatArea.append(rowDiv);
+    chatScrollBottom();
+  }
+
+  function chatScrollBottom() {
+    // 最下部へのスクロール
+    $('#chat_area').animate({scrollTop: $('#chat_area')[0].scrollHeight}, 0);
+  }
+</script>
+</body>
+</html>
